@@ -10,87 +10,95 @@ pkgname=('dmd-20730' 'libphobos-devel-20730' 'libphobos-20730')
 pkgdesc="D programming language compiler and standard library"
 groups=('dlang-20730' 'dlang-dmd-20730')
 pkgbase=dmd-20730
-dlangdir='/usr/lib/dlang/dmd'
-conflicts=('dmd' 'libphobos' 'libphobos-devel')
+_dlangdir='/usr/lib/dlang/dmd'
 pkgver=2.073.0
-pkgver_lib_patch=0.73.0
-pkgver_lib_minor=0.73
+_pkgver_lib_patch=0.73.0
+_pkgver_lib_minor=0.73
+_ldconfd_file="libphobos-20730.conf"
 pkgrel=1
 epoch=1
-arch=('i686' 'x86_64')
+arch=('x86_64')
 url="http://www.dlang.org"
 source=("http://downloads.dlang.org/releases/2.x/$pkgver/dmd.$pkgver.linux.tar.xz")
 sha256sums=('5f7d057e46c4a3273e92c9f00e3c74eaa176cd94e790a94876b1332cfb1c731f')
+depends=('curl' 'gcc')
 
 [[ $CARCH == "x86_64" ]] && _archbits="64"
-[[ $CARCH == "i686" ]] && _archbits="32"
+
+build() {
+	echo "$_dlangdir/$pkgver/lib" > $_ldconfd_file
+}
 
 package_dmd-20730() {
 	pkgdesc="The D programming language reference compiler"
-    depends=('gcc')
-    optdepends=('dmd-devel-common' 'libphobos-devel-20730')
-    provides=("d-compiler=$pkgver")
-    license=('custom')
+	depends=('gcc' 'libphobos-devel-20730')
+	optdepends=('dmd-devel-common' 'libphobos-20730')
+	provides=("d-compiler=$pkgver")
+	license=('custom')
 
-    # binaries
-    for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
-        install -Dm755 $srcdir/dmd2/linux/bin$_archbits/$file $pkgdir$dlangdir/$pkgver/bin/$file
-    done
-    install -Dm644 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+	# binaries
+	for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
+		install -Dm755 $srcdir/dmd2/linux/bin$_archbits/$file $pkgdir$_dlangdir/$pkgver/bin/$file
+	done
 
-    # configs
-   	install -Dm755 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$dlangdir/$pkgver/bin/dmd.conf
-    sed -i "s/..\/..\/src/..\/include/g" $pkgdir$dlangdir/$pkgver/bin/dmd.conf
-    sed -i "s/druntime\/import/druntime/g" $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+	# configs
+	install -Dm644 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+	sed -i "s/..\/..\/src/..\/include/g" $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+	sed -i "s/..\/lib$_archbits/..\/lib/g" $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+	sed -i "s/druntime\/import/druntime/g" $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
 
 
-    # licences
+	# licences
 	install -Dm644 $srcdir/dmd2/license.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE
 	install -Dm644 $srcdir/dmd2/src/dmd/backendlicense.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-backend
 	install -Dm644 $srcdir/dmd2/src/dmd/boostlicense.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-frontend
 
 	# manuals
-    mkdir -p $pkgdir/usr/share/man/man1
-    mkdir -p $pkgdir/usr/share/man/man5
-    cp -r $srcdir/dmd2/man/man1/* $pkgdir/usr/share/man/man1/
-    cp -r $srcdir/dmd2/man/man5/* $pkgdir/usr/share/man/man5/
+	mkdir -p $pkgdir$_dlangdir/$pkgver/man/man1
+	mkdir -p $pkgdir$_dlangdir/$pkgver/man/man5
+	cp -r $srcdir/dmd2/man/man1/* $pkgdir$_dlangdir/$pkgver/man/man1/
+	cp -r $srcdir/dmd2/man/man5/* $pkgdir$_dlangdir/$pkgver/man/man5/
 
-    find $pkgdir/usr -type f | xargs chmod 0644
-    chmod 755 $pkgdir$dlangdir/$pkgver/bin/*
+	find $pkgdir/usr -type f | xargs chmod 0644
+	chmod 755 $pkgdir$_dlangdir/$pkgver/bin/{ddemangle,dman,dmd,dub,dumpobj,dustmite,obj2asm,rdmd}
 }
 package_libphobos-devel-20730() {
 	pkgdesc="The Phobos standard library for D programming language. Modules and static library."
-    options=("staticlibs")
-    provides=("d-runtime=$pkgver" "d-stdlib=$pkgver")
-    optdepends=('libphobos-20730')
-    license=("custom")
+	options=("staticlibs" '!strip')
+	provides=("d-runtime=$pkgver" "d-stdlib=$pkgver")
+	license=("custom")
 
-    mkdir -p $pkgdir$dlangdir/$pkgver/lib
-    install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.a $pkgdir$dlangdir/$pkgver/lib/
-    
-    mkdir -p $pkgdir$dlangdir/$pkgver/include/phobos
-    mkdir -p $pkgdir$dlangdir/$pkgver/include/druntime
-    cp -r $srcdir/dmd2/src/phobos/{*.d,etc,std} $pkgdir$dlangdir/$pkgver/include/phobos/
-    cp -r $srcdir/dmd2/src/druntime/import/* $pkgdir$dlangdir/$pkgver/include/druntime/
+	mkdir -p $pkgdir$_dlangdir/$pkgver/lib
+	install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.a $pkgdir$_dlangdir/$pkgver/lib/
 
-    install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
-    install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+	mkdir -p $pkgdir$_dlangdir/$pkgver/include/phobos
+	mkdir -p $pkgdir$_dlangdir/$pkgver/include/druntime
+	cp -r $srcdir/dmd2/src/phobos/{*.d,etc,std} $pkgdir$_dlangdir/$pkgver/include/phobos/
+	cp -r $srcdir/dmd2/src/druntime/import/* $pkgdir$_dlangdir/$pkgver/include/druntime/
 
-    find $pkgdir/usr -type f | xargs chmod 0644
+	install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
+	install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+
+	find $pkgdir/usr -type f | xargs chmod 0644
 }
 
 package_libphobos-20730() {
-    pkgdesc="The Phobos standard library for D programming language."
-    depends=("curl")
-    license=("custom")
-    mkdir -p $pkgdir$dlangdir/$pkgver/lib
-    install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.so.$pkgver_lib_patch $pkgdir$dlangdir/$pkgver/lib/
-    
-    mkdir -p $pkgdir$dlangdir/$pkgver/lib
-    ln -s $dlangdir/$pkgver/lib/libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so.$pkgver_lib_patch
-    ln -s ./libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so.$pkgver_lib_minor
+	pkgdesc="The Phobos standard library for D programming language."
+	license=("custom")
+	mkdir -p $pkgdir$_dlangdir/$pkgver/lib
+	install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.so.$_pkgver_lib_patch $pkgdir$_dlangdir/$pkgver/lib/
 
-    find $pkgdir/usr -type f | xargs chmod 0644
+	mkdir -p $pkgdir$_dlangdir/$pkgver/lib
+	ln -s ./libphobos2.so.$_pkgver_lib_patch $pkgdir$_dlangdir/$pkgver/lib/libphobos2.so.$_pkgver_lib_minor
+
+	install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
+	install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+
+	mkdir -p $pkgdir/etc/ld.so.conf.d
+	install -Dm644 $srcdir/$_ldconfd_file $pkgdir/etc/ld.so.conf.d/
+
+	find $pkgdir/usr -type f | xargs chmod 0644
+	find $pkgdir$_dlangdir/$pkgver/lib -type f | xargs chmod 0755
 }
 
 
