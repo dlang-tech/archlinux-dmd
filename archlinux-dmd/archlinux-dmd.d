@@ -1,22 +1,47 @@
 // dmd -O -inline -unittest -w -m64 -defaultlib=libphobos2.so archlinux-dmd.d
 
 module archlinux_dmd;
-import archlinux_dmd_config;
-
 
 import std.stdio : writefln, readf;
 import std.exception;
 import std.file;
+import std.path;
 
-enum CURRENT_SYMLINK=DMD_DIR~"/current";
+auto getOption(string name) {
+	string s = import("PKGBUILD_copy");
+	do {
+		auto endofline = s.countUntil('\n');
+		if (endofline < 0 || endofline == s.length) {
+			break;
+		}
+		auto line = s[0..endofline];
+		if (line.startsWith(name ~"=")) {
+			return line.split('=')[1].strip().strip('\'');
+		}
+		if (endofline>=s.length - 1) break;
+		s = s[endofline+1 .. $];
+	} while (s.length>0);
+	assert(0, "option"~ name ~" not found");
+}
+string _currentSymlink = () {
+	return buildPath(_dlangdir, "current");
+}();
+
+
+enum pkgver = getOption("pkgver");
+enum _dmdver = getOption("_dmdver");
+enum _pkgver_lib_patch = getOption("_pkgver_lib_patch");
+enum _pkgver_lib_minor = getOption("_pkgver_lib_minor");
+enum _dlangdir = getOption("_dlangdir");
 
 import std.string;
 import std.conv;
 import std.regex;
 import std.algorithm;
 import std.array;
+import std.range;
 
-//current=$(basename `readlink $DMD_DIR/current`)
+//current=$(basename `readlink $_dlangdir/current`)
 struct SemVer {
 	int major,minor,patch;
 	string pre_release, build;
@@ -31,15 +56,15 @@ struct SemVer {
 		}
 		return ret;
 	}
-    int opCmp(inout typeof(this) s) const {
-    	if (major == s.major) {
-    		if (minor == s.minor) {
-	    		return patch - s.patch;
-	    	}
-	    	return minor - s.minor;
-    	}
-    	return major - s.major;
-    }
+	int opCmp(inout typeof(this) s) const {
+		if (major == s.major) {
+			if (minor == s.minor) {
+				return patch - s.patch;
+			}
+			return minor - s.minor;
+		}
+		return major - s.major;
+	}
 
 	string toString() const {
 		import std.format;
@@ -74,27 +99,31 @@ auto sortSemVer(R)(R items) {
 	}
 
 	string[] ret;
-	foreach (item; sort(versions).array.reverse) {
+	foreach (item; sort(versions).array.retro) {
 		ret ~= item.to!string;
 	}
 	return ret;
 }
 
 auto list_options() {
-    import std.file;
-    import std.path;
-    import std.algorithm;
+	import std.file;
+	import std.path;
+	import std.algorithm;
 
-    auto options = std.file.dirEntries(DMD_DIR, SpanMode.shallow)
-        .filter!(a => a.isDir)
-        .map!(a => std.path.baseName(a.name))
-        .sortSemVer;
+	debug writefln("getting directories in: %s", _dlangdir);
+	auto options = std.file.dirEntries(_dlangdir, SpanMode.shallow)
+		.filter!(a => a.isDir)
+		.map!(a => std.path.baseName(a.name))
+		.sortSemVer;
 
+	string current;
+	if (_currentSymlink.exists()) {
+		current = baseName(readLink(_currentSymlink));
+	}
 	foreach (i, d; options) {
 		if (d == "current") {
 			continue;
 		}
-		auto current = baseName(readLink(CURRENT_SYMLINK));
 		if (current == d) {
 			writefln("  [%d] %s (default)", i, d);
 		} else {
@@ -106,7 +135,6 @@ auto list_options() {
 
 auto set_option() {
 	import std.process;
-	import std.path;
 
 	auto userid = executeShell("id -u");
 	if (userid.output.strip.to!int != 0) {
@@ -126,29 +154,76 @@ auto set_option() {
 		writefln("expected number between 0 and %d", options.length - 1);
 		return;
 	}
-	if (CURRENT_SYMLINK.exists) {
-		remove(CURRENT_SYMLINK);
+	createLinks(options[v]);
+}
+
+void createLinks(string option) {
+	if (_currentSymlink.exists) {
+		remove(_currentSymlink);
 	}
-	symlink(buildPath([DMD_DIR, options[v]]) , CURRENT_SYMLINK);
-	writefln("default dmd: %s", baseName(readLink(CURRENT_SYMLINK)));
+	symlink(buildPath([_dlangdir, option]) , _currentSymlink);
+	writefln("default dmd: %s", baseName(readLink(_currentSymlink)));
+
+	// application symlinks
+	foreach (file; ["ddemangle", "dman", "dmd", "dub", "dumpobj", "dustmite", "obj2asm", "rdmd"]) {
+		auto filepath = buildPath("/usr/bin/", file);
+		if (filepath.exists) {
+			if (!isSymlink(filepath)) {
+				writefln("failed selecting default, not a symlink: %s", file);
+				continue;
+			}
+			filepath.remove();
+		}
+		symlink(buildPath(_dlangdir, "current", file), filepath);
+	}
+	//ln -s $_dlangdir/current/lib/libphobos2.so.$_pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so
+	enum sofilename = "libphobos2.so."~ _pkgver_lib_patch;
+	enum sofilenameAbsoluteTarget = "/usr/lib/libphobos2.so."~ _pkgver_lib_patch;
+	auto defaultSoOkay = !"/usr/lib/libphobos2.so".exists || isSymlink("/usr/lib/libphobos2.so");
+	auto versionedSoOkay = !sofilenameAbsoluteTarget.exists || isSymlink("/usr/lib/"~ sofilename);
+	if (!versionedSoOkay || !defaultSoOkay) {
+		writefln("failed selecting default, not symlinks: /usr/lib/%s, /usr/lib/libphobos2.so", sofilename);
+		return;
+	}
+
+	// at this point we know they are symlinks
+	if (sofilenameAbsoluteTarget.exists) {
+		sofilenameAbsoluteTarget.remove();
+	}
+	if ("/usr/lib/libphobos2.so".exists) {
+		"/usr/lib/libphobos2.so".remove();
+	}
+
+	symlink(buildPath(_dlangdir, "current/lib", sofilename), sofilenameAbsoluteTarget);
+	symlink(buildPath(_dlangdir, "current/lib", sofilename), "/usr/lib/libphobos2.so");
+
+	if ("/etc/dmd.conf".exists) {
+		if (!isSymlink("/etc/dmd.conf")) {
+			writefln("failed selecting default, not a symlink: /etc/dmd.conf");
+			return;
+		}
+		"/etc/dmd.conf".remove();
+	}
+	symlink(buildPath(_dlangdir, "current/bin/dmd.conf"), "/etc/dmd.conf");
 }
 
 void main(string[] args) {
-	if (args.length <= 1) {
-		list_options();
-		return;
+	string cmd;
+	if (args.length > 1) {
+		cmd = args[1];
+	} else {
+		cmd = "status";
 	}
-	switch (args[1]) {
+	switch (cmd) {
 		case "status":
-			goto case;
-		case "list":
+			writefln("installed dmd versions:");
 			list_options();
 			return;
 		case "set":
 			set_option();
 			return;
 		default:
-			writefln("Usage: %s [list]", args[0]);
+			writefln("Usage: %s [status|set]", baseName(args[0]));
 			return;
 	}
 }
