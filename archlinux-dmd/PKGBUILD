@@ -10,10 +10,10 @@ pkgname=('dmd-devel-common')
 pkgdesc="D programming language compiler and standard library"
 groups=('dlang' 'dlang-dmd')
 pkgbase=dmd
-dlangdir='/usr/lib/dlang/dmd'
+_dlangdir='/usr/lib/dlang/dmd'
 conflicts=('dmd' 'libphobos' 'libphobos-devel')
 pkgver=0.1.0
-dmdver=2.073.0
+_dmdver=2.073.0
 pkgrel=1
 epoch=1
 arch=('i686' 'x86_64')
@@ -28,10 +28,10 @@ depends=('libphobos-20730')
 
 build() {
 	echo 'building in ' `pwd`
-	echo "module archlinux_dmd_config; enum DMD_DIR=\"$dlangdir\";" > archlinux_dmd_config.d;
-	$dlangdir/$dmdver/bin/dmd \
+	echo "module archlinux_dmd_config; enum DMD_DIR=\"$_dlangdir\";" > archlinux_dmd_config.d;
+	$_dlangdir/$_dmdver/bin/dmd \
 		-O -inline -unittest -m$_archbits \
-        -L-L$dlangdir/$dmdver/lib/ \
+        -L-L$_dlangdir/$_dmdver/lib/ \
         -defaultlib=libphobos2.so \
 		archlinux-dmd.d
 }
@@ -41,12 +41,12 @@ package_dmd-devel-common() {
     license=("CC")
 
     # dlang current selection
-    mkdir -p $pkgdir$dlangdir/
-    ln -s ./$dmdver $pkgdir$dlangdir/current
+    mkdir -p $pkgdir$_dlangdir/
+    ln -s ./$_dmdver $pkgdir$_dlangdir/current
 
     # dmd config file
     #mkdir $pkgdir/etc
-    #ln -s ..$dlangdir/current/dmd.conf $pkgdir/etc/dmd.conf
+    #ln -s ..$_dlangdir/current/dmd.conf $pkgdir/etc/dmd.conf
 
     # archlinux-dmd current runtime/compiler selection
     mkdir -p $pkgdir/usr/bin
@@ -54,9 +54,9 @@ package_dmd-devel-common() {
 
     # application symlinks
     for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
-    	ln -s $dlangdir/$dmdver/bin/$file $pkgdir/usr/bin/$file
+    	ln -s $_dlangdir/$_dmdver/bin/$file $pkgdir/usr/bin/$file
     done
-    ln -s $dlangdir/current/lib/libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so
+    ln -s $_dlangdir/current/lib/libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so
 
     find $pkgdir -type f | xargs chmod 0644
     chmod 755 $pkgdir/usr/bin/archlinux-dmd
