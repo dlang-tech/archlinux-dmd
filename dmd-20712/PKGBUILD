@@ -1,0 +1,96 @@
+# Maintainer: Rory McGuire <rjmcguire@gmail.com>
+# Contributor: Mihails Strasunse <public@dicebot.lv>
+# Contributor: Sven-Hendrik Haase <sh@lutzhaase.com>
+# Contributor: Chris Brannon <cmbrannon79@gmail.com>
+# Contributor: Andrea Scarpino <andrea@archlinux.org>
+# Contributor: Anders Bergh <anders1@gmail.com>
+# Contributor: Alexander Fehr <pizzapunk gmail com>
+
+pkgname=('dmd-20712' 'libphobos-devel-20712' 'libphobos-20712')
+pkgdesc="D programming language compiler and standard library"
+groups=('dlang-20712' 'dlang-dmd-20712')
+pkgbase=dmd-20712
+dlangdir='/usr/lib/dlang/dmd'
+conflicts=('dmd' 'libphobos' 'libphobos-devel')
+pkgver=2.071.2
+pkgver_lib_patch=0.71.2
+pkgver_lib_minor=0.71
+pkgrel=1
+epoch=1
+arch=('i686' 'x86_64')
+url="http://www.dlang.org"
+source=("http://downloads.dlang.org/releases/2.x/$pkgver/dmd.$pkgver.linux.tar.xz")
+sha256sums=('bab3343083af3aa7a88ac669af9a92f5e7aee1a19882a0a5f21538d90d3aa48c')
+
+[[ $CARCH == "x86_64" ]] && _archbits="64"
+[[ $CARCH == "i686" ]] && _archbits="32"
+
+package_dmd-20712() {
+    pkgdesc="The D programming language reference compiler"
+    depends=('gcc')
+    optdepends=('dmd-devel-common' 'libphobos-devel-20712')
+    provides=("d-compiler=$pkgver")
+    license=('custom')
+
+    # binaries
+    for file in ddemangle dman dmd dumpobj dustmite obj2asm rdmd; do
+        install -Dm755 $srcdir/dmd2/linux/bin$_archbits/$file $pkgdir$dlangdir/$pkgver/bin/$file
+    done;
+
+    # configs
+    install -Dm755 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+    sed -i "s/..\/..\/src/..\/include/g" $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+    sed -i "s/druntime\/import/druntime/g" $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+
+
+    # licences
+    install -Dm644 $srcdir/dmd2/license.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE
+    install -Dm644 $srcdir/dmd2/src/dmd/backendlicense.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-backend
+    install -Dm644 $srcdir/dmd2/src/dmd/boostlicense.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-frontend
+
+    # manuals
+    mkdir -p $pkgdir/$dlangdir/$pkgver/man/man1
+    mkdir -p $pkgdir/$dlangdir/$pkgver/man/man5
+    cp -r $srcdir/dmd2/man/man1/* $pkgdir/$dlangdir/$pkgver/man/man1/
+    cp -r $srcdir/dmd2/man/man5/* $pkgdir/$dlangdir/$pkgver/man/man5/
+
+    find $pkgdir/usr -type f | xargs chmod 0644
+    chmod 755 $pkgdir$dlangdir/$pkgver/bin/*
+}
+package_libphobos-devel-20712() {
+    pkgdesc="The Phobos standard library for D programming language. Modules and static library."
+    options=("staticlibs")
+    provides=("d-runtime=$pkgver" "d-stdlib=$pkgver")
+    optdepends=('libphobos-20712')
+    license=("custom")
+
+    mkdir -p $pkgdir$dlangdir/$pkgver/lib
+    install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.a $pkgdir$dlangdir/$pkgver/lib/
+
+    mkdir -p $pkgdir$dlangdir/$pkgver/include/phobos
+    mkdir -p $pkgdir$dlangdir/$pkgver/include/druntime
+    cp -r $srcdir/dmd2/src/phobos/{*.d,etc,std} $pkgdir$dlangdir/$pkgver/include/phobos/
+    cp -r $srcdir/dmd2/src/druntime/import/* $pkgdir$dlangdir/$pkgver/include/druntime/
+
+    install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
+    install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+
+    find $pkgdir/usr -type f | xargs chmod 0644
+}
+
+package_libphobos-20712() {
+    pkgdesc="The Phobos standard library for D programming language."
+    depends=("curl")
+    license=("custom")
+    mkdir -p $pkgdir$dlangdir/$pkgver/lib
+    install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.so.$pkgver_lib_patch $pkgdir$dlangdir/$pkgver/lib/
+    
+    mkdir -p $pkgdir$dlangdir/$pkgver/lib
+    ln -s $dlangdir/$pkgver/lib/libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so.$pkgver_lib_patch
+    ln -s ./libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so.$pkgver_lib_minor
+
+    find $pkgdir/usr -type f | xargs chmod 0644
+}
+
+
+postintall select default dmd

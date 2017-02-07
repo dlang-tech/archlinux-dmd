@@ -1,0 +1,65 @@
+# Maintainer: Rory McGuire <rjmcguire@gmail.com>
+# Contributor: Mihails Strasunse <public@dicebot.lv>
+# Contributor: Sven-Hendrik Haase <sh@lutzhaase.com>
+# Contributor: Chris Brannon <cmbrannon79@gmail.com>
+# Contributor: Andrea Scarpino <andrea@archlinux.org>
+# Contributor: Anders Bergh <anders1@gmail.com>
+# Contributor: Alexander Fehr <pizzapunk gmail com>
+
+pkgname=('dmd-devel-common')
+pkgdesc="D programming language compiler and standard library"
+groups=('dlang' 'dlang-dmd')
+pkgbase=dmd
+dlangdir='/usr/lib/dlang/dmd'
+conflicts=('dmd' 'libphobos' 'libphobos-devel')
+pkgver=0.1.0
+dmdver=2.073.0
+pkgrel=1
+epoch=1
+arch=('i686' 'x86_64')
+url="http://www.dlang.org"
+source=("archlinux-dmd.d")
+sha256sums=('20767406e25c46b45875948e0ec8a6540017d69605f55c0ca8a2073ad5345933')
+makedepends=('dmd-20730' 'gcc' 'libphobos-devel-20730')
+depends=('libphobos-20730')
+
+[[ $CARCH == "x86_64" ]] && _archbits="64"
+[[ $CARCH == "i686" ]] && _archbits="32"
+
+build() {
+	echo 'building in ' `pwd`
+	echo "module archlinux_dmd_config; enum DMD_DIR=\"$dlangdir\";" > archlinux_dmd_config.d;
+	$dlangdir/$dmdver/bin/dmd \
+		-O -inline -unittest -m$_archbits \
+        -L-L$dlangdir/$dmdver/lib/ \
+        -defaultlib=libphobos2.so \
+		archlinux-dmd.d
+}
+
+package_dmd-devel-common() {
+	pkgdesc="Common files for dmd build Environments"
+    license=("CC")
+
+    # dlang current selection
+    mkdir -p $pkgdir$dlangdir/
+    ln -s ./$dmdver $pkgdir$dlangdir/current
+
+    # dmd config file
+    #mkdir $pkgdir/etc
+    #ln -s ..$dlangdir/current/dmd.conf $pkgdir/etc/dmd.conf
+
+    # archlinux-dmd current runtime/compiler selection
+    mkdir -p $pkgdir/usr/bin
+    install -Dm755 $srcdir/archlinux-dmd $pkgdir/usr/bin/
+
+    # application symlinks
+    for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
+    	ln -s $dlangdir/$dmdver/bin/$file $pkgdir/usr/bin/$file
+    done
+    ln -s $dlangdir/current/lib/libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so
+
+    find $pkgdir -type f | xargs chmod 0644
+    chmod 755 $pkgdir/usr/bin/archlinux-dmd
+}
+
+# postintall offer select default dmd

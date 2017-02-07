@@ -1,0 +1,97 @@
+# Maintainer: Rory McGuire <rjmcguire@gmail.com>
+# Contributor: Mihails Strasunse <public@dicebot.lv>
+# Contributor: Sven-Hendrik Haase <sh@lutzhaase.com>
+# Contributor: Chris Brannon <cmbrannon79@gmail.com>
+# Contributor: Andrea Scarpino <andrea@archlinux.org>
+# Contributor: Anders Bergh <anders1@gmail.com>
+# Contributor: Alexander Fehr <pizzapunk gmail com>
+
+pkgname=('dmd-20730' 'libphobos-devel-20730' 'libphobos-20730')
+pkgdesc="D programming language compiler and standard library"
+groups=('dlang-20730' 'dlang-dmd-20730')
+pkgbase=dmd-20730
+dlangdir='/usr/lib/dlang/dmd'
+conflicts=('dmd' 'libphobos' 'libphobos-devel')
+pkgver=2.073.0
+pkgver_lib_patch=0.73.0
+pkgver_lib_minor=0.73
+pkgrel=1
+epoch=1
+arch=('i686' 'x86_64')
+url="http://www.dlang.org"
+source=("http://downloads.dlang.org/releases/2.x/$pkgver/dmd.$pkgver.linux.tar.xz")
+sha256sums=('5f7d057e46c4a3273e92c9f00e3c74eaa176cd94e790a94876b1332cfb1c731f')
+
+[[ $CARCH == "x86_64" ]] && _archbits="64"
+[[ $CARCH == "i686" ]] && _archbits="32"
+
+package_dmd-20730() {
+	pkgdesc="The D programming language reference compiler"
+    depends=('gcc')
+    optdepends=('dmd-devel-common' 'libphobos-devel-20730')
+    provides=("d-compiler=$pkgver")
+    license=('custom')
+
+    # binaries
+    for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
+        install -Dm755 $srcdir/dmd2/linux/bin$_archbits/$file $pkgdir$dlangdir/$pkgver/bin/$file
+    done
+    install -Dm644 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+
+    # configs
+   	install -Dm755 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+    sed -i "s/..\/..\/src/..\/include/g" $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+    sed -i "s/druntime\/import/druntime/g" $pkgdir$dlangdir/$pkgver/bin/dmd.conf
+
+
+    # licences
+	install -Dm644 $srcdir/dmd2/license.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE
+	install -Dm644 $srcdir/dmd2/src/dmd/backendlicense.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-backend
+	install -Dm644 $srcdir/dmd2/src/dmd/boostlicense.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-frontend
+
+	# manuals
+    mkdir -p $pkgdir/usr/share/man/man1
+    mkdir -p $pkgdir/usr/share/man/man5
+    cp -r $srcdir/dmd2/man/man1/* $pkgdir/usr/share/man/man1/
+    cp -r $srcdir/dmd2/man/man5/* $pkgdir/usr/share/man/man5/
+
+    find $pkgdir/usr -type f | xargs chmod 0644
+    chmod 755 $pkgdir$dlangdir/$pkgver/bin/*
+}
+package_libphobos-devel-20730() {
+	pkgdesc="The Phobos standard library for D programming language. Modules and static library."
+    options=("staticlibs")
+    provides=("d-runtime=$pkgver" "d-stdlib=$pkgver")
+    optdepends=('libphobos-20730')
+    license=("custom")
+
+    mkdir -p $pkgdir$dlangdir/$pkgver/lib
+    install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.a $pkgdir$dlangdir/$pkgver/lib/
+    
+    mkdir -p $pkgdir$dlangdir/$pkgver/include/phobos
+    mkdir -p $pkgdir$dlangdir/$pkgver/include/druntime
+    cp -r $srcdir/dmd2/src/phobos/{*.d,etc,std} $pkgdir$dlangdir/$pkgver/include/phobos/
+    cp -r $srcdir/dmd2/src/druntime/import/* $pkgdir$dlangdir/$pkgver/include/druntime/
+
+    install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
+    install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+
+    find $pkgdir/usr -type f | xargs chmod 0644
+}
+
+package_libphobos-20730() {
+    pkgdesc="The Phobos standard library for D programming language."
+    depends=("curl")
+    license=("custom")
+    mkdir -p $pkgdir$dlangdir/$pkgver/lib
+    install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.so.$pkgver_lib_patch $pkgdir$dlangdir/$pkgver/lib/
+    
+    mkdir -p $pkgdir$dlangdir/$pkgver/lib
+    ln -s $dlangdir/$pkgver/lib/libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so.$pkgver_lib_patch
+    ln -s ./libphobos2.so.$pkgver_lib_patch $pkgdir/usr/lib/libphobos2.so.$pkgver_lib_minor
+
+    find $pkgdir/usr -type f | xargs chmod 0644
+}
+
+
+# postintall offer select default dmd
