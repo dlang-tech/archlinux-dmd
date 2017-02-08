@@ -21,11 +21,10 @@ epoch=1
 arch=('x86_64')
 url="http://www.dlang.org"
 source=("archlinux-dmd.d" "PKGBUILD")
-sha256sums=('18947d9306c3f4e77af69bd726512151ac919ae8fdee646efc4e1201594bad08'
+sha256sums=('eeb485fbf5e3e48b7bd6988e6521ef39f4145fab18ea6850ac5c3de470ec576f'
 	'SKIP')
 makedepends=('dmd-20730' 'gcc' 'libphobos-devel-20730')
 depends=('libphobos-20730')
-install=.INSTALL
 
 [[ $CARCH == "x86_64" ]] && _archbits="64"
 

@@ -8,6 +8,8 @@ import std.file;
 import std.path;
 
 enum D_APPS = ["ddemangle", "dman", "dmd", "dub", "dumpobj", "dustmite", "obj2asm", "rdmd"];
+enum DEFAULT_SO = "/usr/lib/libphobos2.so";
+enum SYSTEM_DMD_CONF = "/etc/dmd.conf";
 
 auto getOption(string name) {
 	string s = import("PKGBUILD_copy");
@@ -167,18 +169,18 @@ auto set_option(bool testMode) {
 enum sofilenameAbsoluteTargetString = q{auto sofilenameAbsoluteTarget = buildPath("/usr/lib", baseName(sofilename));};
 bool managedByArchlinuxDmd(bool testMode) {
 	bool ret = true;
-	if ("/etc/dmd.conf".exists) {
-		if (!isSymlink("/etc/dmd.conf")) {
+	if (SYSTEM_DMD_CONF.exists) {
+		if (!isSymlink(SYSTEM_DMD_CONF)) {
 			writefln("unmanaged: /etc/dmd.conf");
 			ret = false;
 		}
-		if (!readLink("/etc/dmd.conf").endsWith("current/bin/dmd.conf")) {
+		if (!readLink(SYSTEM_DMD_CONF).endsWith("current/bin/dmd.conf")) {
 			writefln("dmd.conf is not managed by archlinux-dmd");
 			ret = false;
 		}
 	}
 	if (testMode && ret) {
-		writefln("okay: %s", "/etc/dmd.conf");
+		writefln("managed: %s", SYSTEM_DMD_CONF);
 	}
 	foreach (file; D_APPS) {
 		auto filepath = buildPath("/usr/bin/", file);
@@ -186,14 +188,18 @@ bool managedByArchlinuxDmd(bool testMode) {
 			if (!isSymlink(filepath) || !readLink(filepath).endsWith("current/bin/"~ file)) {
 				writefln("unmanaged: %s", filepath);
 				ret = false;
+			} else if (testMode) {
+				writefln("managed: %s", filepath);
 			}
+		} else if (testMode) {
+			writefln("missing: %s", filepath);
 		}
 	}
-	if ("/usr/lib/libphobos2.so".exists && !isSymlink("/usr/lib/libphobos2.so")) {
+	if (DEFAULT_SO.exists && !isSymlink(DEFAULT_SO)) {
 		writefln("unmanaged: /usr/lib/libphobos2.so");
 		ret = false;
 	} else if (testMode) {
-		writefln("okay: %s", "/usr/lib/libphobos2.so");
+		writefln("managed: %s", DEFAULT_SO);
 	}
 
 	foreach (sofilename; std.file.dirEntries(_dlangdir, "current/lib", SpanMode.shallow)) {
@@ -203,16 +209,21 @@ bool managedByArchlinuxDmd(bool testMode) {
 			writefln("unmanaged: %s", sofilenameAbsoluteTarget);
 			ret = false;
 		} else if (testMode) {
-			writefln("okay: %s -> %s", sofilenameAbsoluteTarget, readLink(sofilenameAbsoluteTarget));
+			writefln("managed: %s -> %s", sofilenameAbsoluteTarget, readLink(sofilenameAbsoluteTarget));
 		}
 	}
-	foreach (sofilename; std.file.dirEntries(buildPath("/usr/lib"), SpanMode.shallow)) {
-		if (!isSymlink(sofilename.name) || !sofilename.name.canFind("/libphobos2.so.")) continue;
-		if (!readLink(sofilename.name).canFind("current/lib/libphobos2.so.")) {
+	auto current = "";
+	if (_currentSymlink.exists && _currentSymlink.isSymlink) {
+		current = readLink(_currentSymlink);
+	}
+	foreach (sofilename; std.file.dirEntries(buildPath("/usr/lib"), SpanMode.shallow)
+		.filter!(sofilename => isSymlink(sofilename.name) && sofilename.name.startsWith("/usr/lib/libphobos2.so.")))
+	{
+		if (!readLink(sofilename.name).startsWith(buildPath(current, "lib/libphobos2.so."))) {
 			writefln("warning: %s is not managed by archlinux-dmd", sofilename.name);
 			ret = false;
 		} else if (testMode) {
-			writefln("okay: %s -> %s", sofilename, readLink(sofilename.name));
+			writefln("managed: %s -> %s", sofilename, readLink(sofilename.name));
 		}
 	}
 	return ret;
@@ -229,6 +240,10 @@ void createLinks(string option, bool testMode) {
 		return;
 	}
 
+	auto current = "";
+	if (_currentSymlink.exists && _currentSymlink.isSymlink) {
+		current = readLink(_currentSymlink);
+	}
 	if (_currentSymlink.exists) {
 		if (testMode) {
 			writefln("remove: %s", _currentSymlink);
@@ -246,12 +261,12 @@ void createLinks(string option, bool testMode) {
 		writefln("changing default dmd to: %s", baseName(readLink(_currentSymlink)));
 	}
 
-	if (!"/etc/dmd.conf".exists) {
+	if (!SYSTEM_DMD_CONF.exists) {
 		auto newConfFile = buildPath(_dlangdir, "current/bin/dmd.conf");
 		if (testMode) {
-			writefln("symlink %s -> %s", "/etc/dmd.conf", newConfFile);
+			writefln("symlink %s -> %s", SYSTEM_DMD_CONF, newConfFile);
 		} else {
-			symlink(newConfFile, "/etc/dmd.conf");
+			symlink(newConfFile, SYSTEM_DMD_CONF);
 		}
 	}
 
@@ -262,26 +277,28 @@ void createLinks(string option, bool testMode) {
 		if (filepath.exists) {
 			assert(isSymlink(filepath));
 			if (testMode) {
-				writefln("okay %s", filepath);
+				writefln("managed: %s", filepath);
 			}
 		} else if (!testMode) {
 			symlink(buildPath(_dlangdir, "current/bin", file), filepath);
 		}
 	}
 
-	if ("/usr/lib/libphobos2.so".exists) {
+	if (DEFAULT_SO.exists) {
 		if (testMode) {
-			writefln("remove %s", "/usr/lib/libphobos2.so");
+			writefln("remove: %s", DEFAULT_SO);
 		} else {
-			"/usr/lib/libphobos2.so".remove();
+			DEFAULT_SO.remove();
 		}
 	}
 
 	// at this point we know they are symlinks
 	// cleanup old library links
-	foreach (i, sofilename; enumerate(std.file.dirEntries(buildPath("/usr/lib"), SpanMode.shallow).filter!(f => isSymlink(f.name) && f.name.canFind("/libphobos2.so.")))) {
+	foreach (i, sofilename; enumerate(std.file.dirEntries(buildPath("/usr/lib"), SpanMode.shallow)
+		.filter!(sofilename => isSymlink(sofilename.name) && sofilename.name.startsWith("/usr/lib/libphobos2.so."))))
+	{
 		assert(i<3, "trying to remove more than three symlinks %s".format(sofilename));
-		assert(!sofilename.exists || (isSymlink(sofilename.name) && readLink(sofilename.name).canFind("current/lib/libphobos2.so.")), "warning: %s is not managed by archlinux-dmd".format(sofilename.name));
+		assert(!sofilename.exists || (isSymlink(sofilename.name) && readLink(sofilename.name).startsWith(buildPath(current, "lib/libphobos2.so."))), "warning: %s is not managed by archlinux-dmd".format(sofilename.name));
 		if (testMode) {
 			writefln("remove: %s", sofilename);
 		} else {
@@ -290,10 +307,7 @@ void createLinks(string option, bool testMode) {
 	}
 
 	string defaultlib;
-	foreach (sofilename; std.file.dirEntries(buildPath(_dlangdir, "current/lib"), SpanMode.shallow)) {
-		if (!sofilename.name.canFind("libphobos2.so")) {
-			continue;
-		}
+	foreach (sofilename; std.file.dirEntries(buildPath(newPath, "lib"), SpanMode.shallow).filter!(f => f.name.canFind("libphobos2.so"))) {
 		mixin(sofilenameAbsoluteTargetString);
 		if (testMode) {
 			writefln("create symlink: %s", sofilenameAbsoluteTarget);
@@ -304,9 +318,9 @@ void createLinks(string option, bool testMode) {
 	}
 
 	if (testMode) {
-		writefln("symlink %s -> %s", "/usr/lib/libphobos2.so", defaultlib);
+		writefln("symlink %s -> %s", DEFAULT_SO, defaultlib);
 	} else {
-		symlink(defaultlib, "/usr/lib/libphobos2.so");
+		symlink(defaultlib, DEFAULT_SO);
 	}
 }
 
@@ -335,7 +349,12 @@ void main(string[] args) {
 			set_option(testMode);
 			return;
 		default:
-			writefln("Usage: %s [status|set]", baseName(args[0]));
+			// testMode without "set"
+			if (testMode) {
+				managedByArchlinuxDmd(testMode);
+				return;
+			}
+			writefln("Usage: %s [-t] [status|set]", baseName(args[0]));
 			return;
 	}
 }
