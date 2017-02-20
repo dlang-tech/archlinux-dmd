@@ -8,10 +8,9 @@
 
 pkgname=('dmd-20730' 'libphobos-devel-20730' 'libphobos-20730')
 pkgdesc="D programming language compiler and standard library"
-groups=('dmd-versioned' 'dmd-versioned-20730')
-pkgbase='dmd-versioned-20730'
-_prefix='/usr/local'
-_dlangdir="${_prefix}/dmd"
+groups=('dlang-20730' 'dlang-dmd-20730')
+pkgbase=dmd-20730
+_dlangdir='/usr/lib/dlang/dmd'
 pkgver=2.073.0
 _pkgver_lib_patch=0.73.0
 _pkgver_lib_minor=0.73

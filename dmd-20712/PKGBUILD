@@ -8,10 +8,9 @@
 
 pkgname=('dmd-20712' 'libphobos-devel-20712' 'libphobos-20712')
 pkgdesc="D programming language compiler and standard library"
-groups=('dmd-versioned' 'dmd-versioned-20712')
-pkgbase='dmd-versioned-20712'
-_prefix='/usr/local'
-_dlangdir="${_prefix}/dmd"
+groups=('dlang-20712' 'dlang-dmd-20712')
+pkgbase=dmd-20712
+_dlangdir='/usr/lib/dlang/dmd'
 pkgver=2.071.2
 _pkgver_lib_patch=0.71.2
 _pkgver_lib_minor=0.71
@@ -21,7 +20,7 @@ epoch=1
 arch=('x86_64')
 url="http://www.dlang.org"
 source=("http://downloads.dlang.org/releases/2.x/$pkgver/dmd.$pkgver.linux.tar.xz")
-sha256sums=('5f7d057e46c4a3273e92c9f00e3c74eaa176cd94e790a94876b1332cfb1c731f')
+sha256sums=('bab3343083af3aa7a88ac669af9a92f5e7aee1a19882a0a5f21538d90d3aa48c')
 depends=('curl' 'gcc')
 
 [[ $CARCH == "x86_64" ]] && _archbits="64"
@@ -38,7 +37,7 @@ package_dmd-20712() {
     license=('custom')
 
     # binaries
-    for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
+    for file in ddemangle dman dmd dumpobj dustmite obj2asm rdmd; do
         install -Dm755 $srcdir/dmd2/linux/bin$_archbits/$file $pkgdir$_dlangdir/$pkgver/bin/$file
     done
 
@@ -61,7 +60,7 @@ package_dmd-20712() {
     cp -r $srcdir/dmd2/man/man5/* $pkgdir$_dlangdir/$pkgver/man/man5/
 
     find $pkgdir/usr -type f | xargs chmod 0644
-    chmod 755 $pkgdir$_dlangdir/$pkgver/bin/{ddemangle,dman,dmd,dub,dumpobj,dustmite,obj2asm,rdmd}
+    chmod 755 $pkgdir$_dlangdir/$pkgver/bin/{ddemangle,dman,dmd,dumpobj,dustmite,obj2asm,rdmd}
 }
 package_libphobos-devel-20712() {
     pkgdesc="The Phobos standard library for D programming language. Modules and static library."
