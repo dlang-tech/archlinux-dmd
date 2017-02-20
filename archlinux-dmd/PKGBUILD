@@ -8,38 +8,26 @@
 
 pkgname=('dmd-devel-common')
 pkgdesc="D programming language compiler and standard library"
-groups=('dlang' 'dlang-dmd')
-pkgbase=dmd-devel-common
-_dlangdir='/usr/lib/dlang/dmd'
-conflicts=('dmd' 'libphobos' 'libphobos-devel')
+groups=('dlang')
+_prefix='/usr'
+_dlangdir="/usr/include/dlang/dmd"
 pkgver=0.1.0
-_dmdver=2.073.0
-_pkgver_lib_patch=0.73.0
-_pkgver_lib_minor=0.73
 pkgrel=1
 epoch=1
 arch=('x86_64')
 url="http://www.dlang.org"
 source=("archlinux-dmd.d" "PKGBUILD")
-sha256sums=('eeb485fbf5e3e48b7bd6988e6521ef39f4145fab18ea6850ac5c3de470ec576f'
+sha256sums=('cf0acebc440c7357973cc394ec6bb1e99632ce2c3e01eac76a08c65b392d10e6'
 	'SKIP')
-makedepends=('dmd-20730' 'gcc' 'libphobos-devel-20730')
-depends=('libphobos-20730')
+makedepends=('dmd' 'libphobos-devel')
+depends=('libphobos')
 
 [[ $CARCH == "x86_64" ]] && _archbits="64"
 
 build() {
 	cp $srcdir/PKGBUILD $srcdir/PKGBUILD_copy
-	echo 'building in ' `pwd` " with " $_dlangdir/$_dmdver/bin/dmd \
+	dmd \
 		-O -inline -unittest -m$_archbits \
-		-L-L$_dlangdir/$_dmdver/lib/ \
-		-defaultlib=libphobos2.so \
-		-J$srcdir/. \
-		archlinux-dmd.d
-	$_dlangdir/$_dmdver/bin/dmd \
-		-O -inline -unittest -m$_archbits \
-		-L-L$_dlangdir/$_dmdver/lib/ \
-		-defaultlib=libphobos2.so \
 		-J$srcdir/. \
 		archlinux-dmd.d
 }
