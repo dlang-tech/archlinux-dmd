@@ -1,0 +1,100 @@
+# Maintainer: Rory McGuire <rjmcguire@gmail.com>
+# Contributor: Mihails Strasunse <public@dicebot.lv>
+# Contributor: Sven-Hendrik Haase <sh@lutzhaase.com>
+# Contributor: Chris Brannon <cmbrannon79@gmail.com>
+# Contributor: Andrea Scarpino <andrea@archlinux.org>
+# Contributor: Anders Bergh <anders1@gmail.com>
+# Contributor: Alexander Fehr <pizzapunk gmail com>
+
+pkgname=('dmd-20740' 'libphobos-devel-20740' 'libphobos-20740')
+pkgdesc="D programming language compiler and standard library"
+groups=('dlang-20740' 'dlang-dmd-20740')
+pkgbase=dmd-20740
+_dlangdir='/usr/lib/dlang/dmd'
+pkgver=2.074.0
+_pkgver_lib_patch=0.74.0
+_pkgver_lib_minor=0.74
+_ldconfd_file="libphobos-20740.conf"
+pkgrel=1
+epoch=1
+arch=('x86_64')
+url="http://www.dlang.org"
+source=("http://downloads.dlang.org/releases/2.x/$pkgver/dmd.$pkgver.linux.tar.xz")
+sha256sums=('c6aecb8bf136ef24b2e6f5276a9f738c67ac03c50000ff106d1ecf006c6f715c')
+depends=('curl' 'gcc')
+
+[[ $CARCH == "x86_64" ]] && _archbits="64"
+
+build() {
+	echo "$_dlangdir/$pkgver/lib" > $_ldconfd_file
+}
+
+package_dmd-20740() {
+	pkgdesc="The D programming language reference compiler"
+	depends=('gcc' 'libphobos-devel-20740')
+	optdepends=('dmd-devel-common' 'libphobos-20740')
+	provides=("d-compiler=$pkgver")
+	license=('custom')
+
+	# binaries
+	for file in ddemangle dman dmd dub dumpobj dustmite obj2asm rdmd; do
+		install -Dm755 $srcdir/dmd2/linux/bin$_archbits/$file $pkgdir$_dlangdir/$pkgver/bin/$file
+	done
+
+	# configs
+	install -Dm644 $srcdir/dmd2/linux/bin$_archbits/dmd.conf $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+	sed -i "s/..\/..\/src/..\/include/g" $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+	sed -i "s/..\/lib$_archbits/..\/lib/g" $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+	sed -i "s/druntime\/import/druntime/g" $pkgdir$_dlangdir/$pkgver/bin/dmd.conf
+
+
+	# licences
+	install -Dm644 $srcdir/dmd2/license.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE
+
+	# manuals
+	mkdir -p $pkgdir$_dlangdir/$pkgver/man/man1
+	mkdir -p $pkgdir$_dlangdir/$pkgver/man/man5
+	cp -r $srcdir/dmd2/man/man1/* $pkgdir$_dlangdir/$pkgver/man/man1/
+	cp -r $srcdir/dmd2/man/man5/* $pkgdir$_dlangdir/$pkgver/man/man5/
+
+	find $pkgdir/usr -type f | xargs chmod 0644
+	chmod 755 $pkgdir$_dlangdir/$pkgver/bin/{ddemangle,dman,dmd,dub,dumpobj,dustmite,obj2asm,rdmd}
+}
+package_libphobos-devel-20740() {
+	pkgdesc="The Phobos standard library for D programming language. Modules and static library."
+	options=("staticlibs" '!strip')
+	provides=("d-runtime=$pkgver" "d-stdlib=$pkgver")
+	license=("custom")
+
+	mkdir -p $pkgdir$_dlangdir/$pkgver/lib
+	install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.a $pkgdir$_dlangdir/$pkgver/lib/
+
+	mkdir -p $pkgdir$_dlangdir/$pkgver/include/phobos
+	mkdir -p $pkgdir$_dlangdir/$pkgver/include/druntime
+	cp -r $srcdir/dmd2/src/phobos/{*.d,etc,std} $pkgdir$_dlangdir/$pkgver/include/phobos/
+	cp -r $srcdir/dmd2/src/druntime/import/* $pkgdir$_dlangdir/$pkgver/include/druntime/
+
+	install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
+	install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+
+	find $pkgdir/usr -type f | xargs chmod 0644
+}
+
+package_libphobos-20740() {
+	pkgdesc="The Phobos standard library for D programming language."
+	license=("custom")
+	mkdir -p $pkgdir$_dlangdir/$pkgver/lib
+	install -Dm644 $srcdir/dmd2/linux/lib$_archbits/libphobos2.so.$_pkgver_lib_patch $pkgdir$_dlangdir/$pkgver/lib/
+
+	mkdir -p $pkgdir$_dlangdir/$pkgver/lib
+	ln -s ./libphobos2.so.$_pkgver_lib_patch $pkgdir$_dlangdir/$pkgver/lib/libphobos2.so.$_pkgver_lib_minor
+
+	install -Dm644 $srcdir/dmd2/src/druntime/LICENSE $pkgdir/usr/share/licenses/$pkgname/LICENSE-druntime
+	install -Dm644 $srcdir/dmd2/src/phobos/LICENSE_1_0.txt $pkgdir/usr/share/licenses/$pkgname/LICENSE-phobos
+
+	mkdir -p $pkgdir/etc/ld.so.conf.d
+	install -Dm644 $srcdir/$_ldconfd_file $pkgdir/etc/ld.so.conf.d/
+
+	find $pkgdir/usr -type f | xargs chmod 0644
+	find $pkgdir$_dlangdir/$pkgver/lib -type f | xargs chmod 0755
+}
